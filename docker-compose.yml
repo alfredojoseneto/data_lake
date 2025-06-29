@@ -20,14 +20,32 @@ services:
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
     networks:
-      - arquitetura
+      - data_lake_net
     expose:
       - 5433
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
       # - ./scripts/arquitura.sh:/docker-entrypoint-initdb.d/1_arquitetura.sh
+
+  pgadmin:
+    image: elestio/pgadmin:REL-9_4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_DEFAULT_EMAIL:-admin@mail.com}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD:-admin}"
+      PGADMIN_LISTEN_PORT: 8080
+    networks:
+      - data_lake_net
+    expose:
+      - 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin4:/pgadmin4/servers.json
    
 
   minio:
@@ -37,7 +55,7 @@ services:
     container_name: minio
     restart: always
     networks:
-      - arquitetura
+      - data_lake_net
     expose:
       - 9000
       - 9001
@@ -54,11 +72,15 @@ services:
     image: minio/mc
     container_name: minio_mc
     networks:
-      - arquitetura
+      - data_lake_net
+    environment:
+      MINIO_HOST: "${MINIO_HOST}"
+      MINIO_ACCESS_KEY: "${MINIO_ACCESS_KEY}"
+      MINIO_SECRET_KEY: "${MINIO_SECRET_KEY}"
     entrypoint: >
       /bin/sh -c "
       sleep 15;
-      /usr/bin/mc alias set myminio http://minio:9000 root p4ssw0rd;
+      /usr/bin/mc alias set myminio ${MINIO_HOST} ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY};
       /usr/bin/mc rm -r --force myminio/lakehouse;
       /usr/bin/mc mb myminio/lakehouse;
       /usr/bin/mc policy download myminio/lakehouse;
@@ -70,29 +92,10 @@ services:
     volumes:
       - ./minio:/tmp/data
 
-  dbeaver:
-    image: dbeaver/cloudbeaver:latest
-    container_name: dbeaver
-    restart: unless-stopped
-    networks:
-      - arquitetura
-    expose:
-      - 8978
-    ports:
-      - "8978:8978"
-    environment:
-      CB_INIT_CONNECTION_NAME: "PostgreSQL"
-      CB_INIT_CONNECTION_DRIVER: "postgresql"
-      CB_INIT_CONNECTION_URL: "jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mydatabase}"
-      CB_INIT_CONNECTION_USER: "${POSTGRES_USER:-admin}"
-      CB_INIT_CONNECTION_PASSWORD: "${POSTGRES_PASSWORD:-admin123}"
-    depends_on:
-      - postgres
-
-
 volumes:
-  pgdata:
+  postgres:
+  pgadmin4:
   miniodata:
 
 networks:
-  arquitetura:
+  data_lake_net:
