@@ -1,14 +1,20 @@
-name: arquitetura
+name: lakehouse
 
 
 services:
-  # app:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.app.yml
-  #   container_name: "app"
-  #   networks:
-  #     - arquitetura
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app.yml
+    container_name: "app"
+    networks:
+      - lakehouse_net
+    expose:
+      - 8888
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./app:/workdir/app
 
   postgres:
     image: postgres:17-bookworm
@@ -20,14 +26,14 @@ services:
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
     networks:
-      - data_lake_net
+      - lakehouse_net
     expose:
       - 5433
     ports:
       - "5433:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
-      # - ./scripts/arquitura.sh:/docker-entrypoint-initdb.d/1_arquitetura.sh
+      - ./scripts/data_warehouse.sh:/docker-entrypoint-initdb.d/1.data_warehouse.sh
 
   pgadmin:
     image: elestio/pgadmin:REL-9_4
@@ -37,7 +43,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_DEFAULT_PASSWORD:-admin}"
       PGADMIN_LISTEN_PORT: 8080
     networks:
-      - data_lake_net
+      - lakehouse_net
     expose:
       - 8080
     ports:
@@ -55,7 +61,7 @@ services:
     container_name: minio
     restart: always
     networks:
-      - data_lake_net
+      - lakehouse_net
     expose:
       - 9000
       - 9001
@@ -72,7 +78,7 @@ services:
     image: minio/mc
     container_name: minio_mc
     networks:
-      - data_lake_net
+      - lakehouse_net
     environment:
       MINIO_HOST: "${MINIO_HOST}"
       MINIO_ACCESS_KEY: "${MINIO_ACCESS_KEY}"
@@ -98,4 +104,4 @@ volumes:
   miniodata:
 
 networks:
-  data_lake_net:
+  lakehouse_net:
